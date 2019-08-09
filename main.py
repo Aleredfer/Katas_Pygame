@@ -47,13 +47,16 @@ class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
     velocidad = 5
     dirx = 1
     diry = 1
-
+    cuentachoques = 0
     color = (255, 255, 255)  #tupla de 3 colores (RGB)
     
     def __init__(self):
         pg.Surface.__init__(self, (self.w,self.h))
         self.fill(self.color)
 
+        self.sound = pg.mixer.Sound(os.getcwd()+'/assets/sonido.wav') #misma estructura que con font: 
+        #            pg.font.Font(os.getcwd()+'/assets/fontUNO.ttf', 48) 
+        
     def setColor(self, color):
         self.color = color
         self.fill(self.color)
@@ -62,6 +65,9 @@ class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
         self.x = 392
         self.y = 292
         self.diry = random.choice([-1,1])  #elije de forma aleatoria -1 o 1,  hacia arriba o hacia abajo.
+        self.cuentachoques = 0
+        self.velocidad = 5
+
         if ganador == 1:
             self.dirx = -1
         else:
@@ -70,8 +76,9 @@ class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
     def avanza(self):
         if self.x >= 784:
          # puntuar 
-            self.saque(2) 
+            self.saque(2)
             return 2
+
         if self.y >= 584:
             self.diry = -1
      
@@ -79,6 +86,7 @@ class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
          # puntuar 
            self.saque(1)
            return 1
+
         if self.y <= 0:
             self.diry = 1
 
@@ -89,10 +97,19 @@ class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
     def choqueBall(self, candidata):    #comprueba si y de la bola (self.y) está entre "y and y+h" de la raqueta
         if (between(self.y, candidata.y, candidata.y+candidata.h) or between(self.y+self.h, candidata.y, candidata.y+candidata.h)) and \
             (between(self.x, candidata.x, candidata.x+candidata.w) or between(self.x+self.w, candidata.x, candidata.x+candidata.w)):
+            
 
             self.dirx = self.dirx * -1
             self.x += self.dirx
+            self.sound.play()
+            self.cuentachoques += 1
 
+            if self.cuentachoques <= 4:
+                self.velocidad = 7
+            elif self.cuentachoques <= 9:
+                self.velocidad = 9
+            else:
+                self.velocidad = 14
         '''if (candidata.x >= self.x and candidata.x <= self.x+self.w or \
             candidata.x+candidata.w >= self.x and candidata.x+candidata.w <= self.x+self.w) and \
             (candidata.y >= self.x and candidata.y <= self.y+self.h or \
@@ -103,7 +120,7 @@ class Game:    # en la clase Game se controlan los eventos
     clock = pg.time.Clock()      #velocidad de refresco
     pause = False
     puntuaciones = {1: 0, 2: 0}
-    winScore = 3
+    winScore = 15
     def __init__(self, width, height):
         self.size = (width, height)
         self.display = pg.display    #coge pg.display (objeto: pantalla) y lo mete en un atributo de la class Game para jugar con el.
@@ -130,7 +147,7 @@ class Game:    # en la clase Game se controlan los eventos
         self.ball1.y = 292
         self.ball1.diry = random.choice([-1,1])  #elije de forma aleatoria -1 o 1,  hacia arriba o hacia abajo.
         self.ball1.dirx = random.choice([-1,1])
-        self.ball1.velocidad = random.randrange(5,10)  #la velocidad sale al azar entre 2 y 9
+        self.ball1.velocidad = 7  #la velocidad sale al azar entre 2 y 9
 
         self.player1.x= 768
         self.player1.y= 252
@@ -183,7 +200,8 @@ class Game:    # en la clase Game se controlan los eventos
                     if self.winner:
                         self.iniciodepartida()
                     self.pause = False
-                       
+                
+                
             #Esto se hace para que no haya que darle muchas pulsaciones y poder MANTENER PRESIONADO el K_UP o el K_DOWN
         keys_pressed = pg.key.get_pressed()           #devuelve una lista de todas la teclase que han sido pulsadas (de un ciclo a otro?)
         if keys_pressed[K_UP] == 1:
@@ -220,13 +238,15 @@ class Game:    # en la clase Game se controlan los eventos
             if p:
                 self.pause = True
                 self.puntuaciones[p] += 1
+                self.ball1.cuentachoques = 0
                 self.marcador1 = self.fuente.render(str(self.puntuaciones[1]), 1, (255,255,255))
                 self.marcador2 = self.fuente.render(str(self.puntuaciones[2]), 1, (255,255,255))
                  
                 if self.puntuaciones[1] >= self.winScore or self.puntuaciones[2] >= self.winScore:
-                    self.winner = self.fuente.render("Eres el mejor jugador {} !!!".format(p), 0, (255,255,0))
+                    self.winner = self.fuente.render("Eres el mejor jugador {} !!!".format(p), 1, (255,255,0))
                         
-    
+                
+
         self.ball1.choqueBall(self.player1)   # para que cambie de dirección cuando choque con player 1
         self.ball1.choqueBall(self.player2)
 
@@ -237,14 +257,24 @@ class Game:    # en la clase Game se controlan los eventos
         self.screen.blit(self.ball1, (self.ball1.x , self.ball1.y))
         self.screen.blit(self.player1, (self.player1.x , self.player1.y))
         self.screen.blit(self.player2, (self.player2.x , self.player2.y))
-        self.screen.blit(self.marcador2, (8 , 8))
-        self.screen.blit(self.marcador1, (762 , 8))
+        self.screen.blit(self.marcador2, (16 , 8))
+        caja = self.marcador1.get_rect()
+        self.screen.blit(self.marcador1, ( 784 -caja.w, 8))
             
         if self.winner:
             rect = self.winner.get_rect()   #recuperacion del rectangulo, posicion y tamaño supongo
             self.screen.blit(self.winner, ((800- rect.w)//2, (600 -rect.h)//2))
 
         self.display.flip()   #repintar   #ampliando, pasa todo lo anterior a la tarjeta gráfica y lo pinta    
+
+
+    def movimientoP1(self):
+        
+        
+        if self.ball1.y >= 150:
+            
+            self.player1.y = self.ball1.y
+            
 
     def start(self):
         while True:  #monta un bucle
@@ -255,7 +285,9 @@ class Game:    # en la clase Game se controlan los eventos
             self.recalculate()
             
             self.render()
-      
+
+            self.movimientoP1()
+
 if __name__ == '__main__':
     pg.init()   # inicializa pygame
     game = Game(800, 600)   #le da el tamaño, la tupla size.
