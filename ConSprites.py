@@ -7,11 +7,7 @@ import random
 
 _FPS = 60
 
-def between(valor, liminf, limsup):
-    return valor >= liminf and valor <= limsup
-    ''' También se puede poner:''' # reuturn liminf <= valor <= limsup
-
-class Raquet(pg.Surface):
+class Raquet(pg.sprite.Sprite):
     x=0
     y=0
     w= 16
@@ -21,13 +17,19 @@ class Raquet(pg.Surface):
     diry =1
     sigueA = None
     esComputadora = False
-    def __init__(self):
-        pg.Surface.__init__(self, (self.w, self.h))
-        self.fill(self.color)
+    def __init__(self, parametro=None):
+        pg.sprite.Sprite.__init__(self)
+        self.image = pg.Surface((self.w, self.h))
+        self.rect = self.image.get_rect()
+        self.image.fill(self.color)
+
+        self.sigueA = parametro
+        if self.sigueA:    #si hay parametro(ball1) en Raquet entonces computadoa True
+            self.esComputadora = True
 
     def setColor(self, color):
         self.color = color
-        self.fill(self.color)
+        self.image.fill(self.color)
 
     def avanza(self):
         self.y += self.diry * self.velocidad
@@ -35,17 +37,13 @@ class Raquet(pg.Surface):
         if self.y <= 0:
             self.y = 0
 
-        if self.y >= 504:
-            self.y = 504
-        
-    def sigue(self, pelota):   #pelota es ball1, una referencia de un objeto que contiene todos los atriubutos, por eso se puede poner después "sigueA.y"
-        self.sigueA = pelota
-        self.esComputadora = True
+        if self.y >= 600 - self.h:
+            self.y = 600 - self.h
 
-    def watch(self):
+    def watch(self):   #cuando no hay pulsaciones se lanza de forma automatica
         if self.sigueA.x >= 100:
-            if self.velocidad <= 10:   #ñapa para acelerar
-                self.velocidad += 0.5   #ñapa para acelerar
+            if self.velocidad <= 10:
+                self.velocidad += 0.5
             deltaY = self.sigueA.y - self.y
             if deltaY > 0:
                 self.diry = +1
@@ -55,7 +53,11 @@ class Raquet(pg.Surface):
                 self.diry = 0
             self.avanza()
 
-class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
+    def update(self):
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+class Ball(pg.sprite.Sprite):    #sprite, objetos que se mueven por la pantalla.
     #atributos de Ball:
     x=0
     y=0
@@ -65,18 +67,18 @@ class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
     dirx = 1
     diry = 1
     cuentachoques = 0
-    color = (255, 255, 255)  #tupla de 3 colores (RGB)
+    #color = (255, 255, 255)  #tupla de 3 colores (RGB)
     
     def __init__(self):
-        pg.Surface.__init__(self, (self.w,self.h))
-        self.fill(self.color)
-
+        pg.sprite.Sprite.__init__(self)
+        self.image = pg.image.load(os.getcwd()+'/assets/beachBall.png')
+        self.rect = self.image.get_rect()
+        
+        self.ping = pg.mixer.Sound(os.getcwd()+'/assets/ping.wav')
+        self.lost = pg.mixer.Sound(os.getcwd()+'/assets/lost-point.wav')
         self.sound = pg.mixer.Sound(os.getcwd()+'/assets/sonido.wav') #misma estructura que con font: 
         #            pg.font.Font(os.getcwd()+'/assets/fontUNO.ttf', 48) 
         
-    def setColor(self, color):
-        self.color = color
-        self.fill(self.color)
 
     def saque(self, ganador):
         self.x = 392
@@ -84,6 +86,7 @@ class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
         self.diry = random.choice([-1,1])  #elije de forma aleatoria -1 o 1,  hacia arriba o hacia abajo.
         self.cuentachoques = 0
         self.velocidad = 5
+        self.lost.play()
 
         if ganador == 1:
             self.dirx = -1
@@ -111,26 +114,20 @@ class Ball(pg.Surface):    #sprite, objetos que se mueven por la pantalla.
         self.y += self.diry * self.velocidad
         return None
 
-    def choqueBall(self, candidata):    #comprueba si y de la bola (self.y) está entre "y and y+h" de la raqueta
-        if (between(self.y, candidata.y, candidata.y+candidata.h) or between(self.y+self.h, candidata.y, candidata.y+candidata.h)) and \
-            (between(self.x, candidata.x, candidata.x+candidata.w) or between(self.x+self.w, candidata.x, candidata.x+candidata.w)):
-            
-
+    def choqueBall(self, spriteGroup):      # spritecollide   = colinisiones
+        if pg.sprite.spritecollide(self, spriteGroup, False):    # con True desaparecen los elementos con los que choca self.
             self.dirx = self.dirx * -1
-            self.x += self.dirx
-            self.sound.play()
-            self.cuentachoques += 1
+            self.x += self.dirx * self.w
+
+            self.ping.play()
 
             if self.velocidad <= 14:
                 self.velocidad += 0.5
+            # es lo mismo que arriba    self.velocidad = min(14, self.velocidad + 0.5)      ##mínimo entre 14 y self.velocidad +0.5  ((el mínimo siempre será 14 =D)) 
 
-            # es lo mismo que arriba    self.velocidad = min(14, self.velocidad + 0.5)      ##mínimo entre 14 y self.velocidad +0.5  ((el mínimo siempre será 14 =D))          
-            print(self.velocidad)
-        '''if (candidata.x >= self.x and candidata.x <= self.x+self.w or \
-            candidata.x+candidata.w >= self.x and candidata.x+candidata.w <= self.x+self.w) and \
-            (candidata.y >= self.x and candidata.y <= self.y+self.h or \
-            candidata.y+candidata.h >= self.y and candidata.y+candidata.h <= self.y+self.h):'''
-               
+    def update(self):
+        self.rect.x = self.x
+        self.rect.y = self.y
 
 class Game:    # en la clase Game se controlan los eventos
     clock = pg.time.Clock()      #velocidad de refresco
@@ -145,15 +142,19 @@ class Game:    # en la clase Game se controlan los eventos
         self.screen.fill((60,60,60))             #esto pinta la pantalla "screen" de gris ((60, 60, 60))
         self.display.set_caption("Mi juego")    #título para la ventana.
 
+        self.allSprites = pg.sprite.Group()
+        self.playersGroup = pg.sprite.Group()
+
         self.ball1 = Ball()
-        self.ball1.setColor((255, 0, 0))
+        self.allSprites.add(self.ball1)        #<llSprites contiene a la bola 
 
-        self.player1 = Raquet()
-
-        self.player1.sigue(self.ball1)
-        print(self.player1.esComputadora)
-        self.player2 = Raquet()
+        self.player1 = Raquet(self.ball1)
+        self.playersGroup.add(self.player1)     #contiene al player1
+       
+        self.player2 = Raquet() 
+        self.playersGroup.add(self.player2)    #playersGroup contiene a los jugadores
         
+        self.allSprites.add(self.playersGroup)
 
         self.fuente = pg.font.Font(os.getcwd()+'/assets/fontUNO.ttf', 48)    #podemos descargar la fuente de google fonts. Import sys,os.    # 24 es el tamñao
         
@@ -253,7 +254,7 @@ class Game:    # en la clase Game se controlan los eventos
             self.player2.avanza()
 
     def recalculate(self):
-        #modifica la posicion:
+        #modifica la posicion y suma puntuaciones:
         if not self.pause:
             p = self.ball1.avanza()
             if p:
@@ -268,20 +269,25 @@ class Game:    # en la clase Game se controlan los eventos
                         
                 
 
-        self.ball1.choqueBall(self.player1)   # para que cambie de dirección cuando choque con player 1
-        self.ball1.choqueBall(self.player2)
+        self.ball1.choqueBall(self.playersGroup)   # para que cambie de dirección cuando choque con player 1
 
     def render(self):
         #Pintar los sprites en el screen:
         self.screen.fill((60, 60, 60))   #esto pinta la pantalla "screen" de gris ((60, 60, 60))
         
-        self.screen.blit(self.ball1, (self.ball1.x , self.ball1.y))
+        self.allSprites.update()     #update de todos y cada uno de los sprites. Todos necesitan el metodo update para que funcione, en este caso Ball y Raquet
+        self.allSprites.draw(self.screen)   #esto dibuja las 3 líneas de abajo porque ya las contiene
+        '''self.screen.blit(self.ball1, (self.ball1.x , self.ball1.y))
         self.screen.blit(self.player1, (self.player1.x , self.player1.y))
-        self.screen.blit(self.player2, (self.player2.x , self.player2.y))
+        self.screen.blit(self.player2, (self.player2.x , self.player2.y))'''
+
+        #marcadores:
         self.screen.blit(self.marcador2, (16 , 8))
+        
         caja = self.marcador1.get_rect()
         self.screen.blit(self.marcador1, ( 784 -caja.w, 8))
             
+        # igual que lo de arriba     self.screen.blit(self.marcador1, ( 784 -self.marcador1.get_rect().w, 8))    
         if self.winner:
             rect = self.winner.get_rect()   #recuperacion del rectangulo, posicion y tamaño supongo
             self.screen.blit(self.winner, ((800- rect.w)//2, (600 -rect.h)//2))
