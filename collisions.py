@@ -51,7 +51,7 @@ class Ball(pg.sprite.Sprite):
 
 
     def comprobarChoque(self, spriteGroup):
-        if pg.sprite.spritecollide(self, spriteGroup, True):
+        if pg.sprite.spritecollide(self, spriteGroup, False):    #con True destruye
             if random.choice([0,1]):
                 self.dirx = -self.dirx
             else:
